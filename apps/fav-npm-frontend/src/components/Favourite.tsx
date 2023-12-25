@@ -5,10 +5,13 @@ import { ReuseButton } from "@repo/ui";
 import { useNavigate } from "react-router-dom";
 
 interface FavoriteItem {
+  name: string;
   result: string;
   reason: string;
   isVisible: boolean;
   isEditing: boolean;
+  description: string; 
+  uuid: number;
 }
 
 const Favourite: FC = () => {
@@ -20,13 +23,32 @@ const Favourite: FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedFavorites: FavoriteItem[] = JSON.parse(localStorage.getItem("favorites") || "[]");
-    const favoritesWithFeatures = storedFavorites.map(fav => ({ ...fav, isVisible: false, isEditing: false }));
-    setFavorites(favoritesWithFeatures);
+    fetch("http://localhost:3000/")
+      .then(response => response.json())
+      .then(data => {
+        const favoritesWithFeatures = data.result.map((fav: FavoriteItem) => ({ ...fav, isVisible: false, isEditing: false }));
+        setFavorites(favoritesWithFeatures);
+      })
+      .catch(error => console.error('Error:', error));
   }, []);
 
   const handleDelete = (index: number): void => {
-    setDeleteIndex(index);
+    // setDeleteIndex(index);
+    const itemToDelete = favorites[index];
+    
+    fetch(`http://localhost:3000/packages/${itemToDelete.uuid}`, {
+      method: 'DELETE'
+    })
+    .then(() => {
+      const updatedFavorites = [...favorites];
+      updatedFavorites.splice(index, 1);
+      setFavorites(updatedFavorites);
+      setShowDeleteConfirmation(false);
+    })
+    .catch(error => {
+      console.error('Error deleting favorite:', error);
+    });
+    
     setShowDeleteConfirmation(true);
   };
 
@@ -78,9 +100,10 @@ const Favourite: FC = () => {
   const handleSubmit = (): void => {
     navigate("/");
   };
-
+  console.log(favorites);
   return (
     <div>
+      
       <div className="flex justify-between m-16 py-1 align-middle w-4/5 mx-auto">
         <h1>Welcome to Favourite NPM Packages</h1>
         <ReuseButton
@@ -93,12 +116,13 @@ const Favourite: FC = () => {
       </div>
       <ul className="border border-black w-80% m-16 py-1 w-4/5 mx-auto">
         <div className="flex justify-around">
-          <li><strong>Package name</strong></li>
+          <li><strong>name  </strong></li>
           <li><strong>Actions</strong></li>
         </div>
+
         {favorites.map((fav, index) => (
           <li key={index} className="flex items-center justify-between border-b border-gray-300 p-4">
-            <span className="max-w-sm mx-64">{fav.result}</span>
+            <span className="max-w-sm mx-64">{fav.name}</span>
             <div className="flex items-center justify-end space-x-4 border mx-56 gap-2">
               <FontAwesomeIcon
                 icon={fav.isVisible ? faEyeSlash : faEye}
@@ -121,7 +145,7 @@ const Favourite: FC = () => {
             </div>
             {fav.isVisible && (
               <div className="absolute left-1/4 mt-2 p-2 mx-80 bg-white border border-gray-300 rounded-md">
-                <strong>Fav Reason:</strong> {fav.reason}
+                <strong>Fav Reason:</strong> {fav.description}
               </div>
             )}
             {fav.isEditing && (
